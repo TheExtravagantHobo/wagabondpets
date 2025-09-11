@@ -1,0 +1,17 @@
+# .eslintignore
+
+# Ignore generated files
+node_modules
+.next
+out
+dist
+build
+
+# Ignore Prisma generated files
+app/generated/**
+prisma/generated/**
+**/generated/**
+
+# Ignore specific problematic files
+**/*.min.js
+**/*.min.css

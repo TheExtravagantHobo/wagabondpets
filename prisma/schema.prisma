@@ -1,0 +1,274 @@
+// prisma/schema.prisma
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DATABASE_URL_UNPOOLED")
+}
+
+model User {
+  id                 String            @id @default(cuid())
+  clerkId            String            @unique
+  email              String            @unique
+  name               String?
+  avatarUrl          String?
+  phone              String?
+  timezone           String            @default("America/New_York")
+  location           String?           // City, State format
+  emergencyContact   String?           // Name and phone
+  preferredVet       String?           // Clinic name and address
+  notificationEmail  Boolean           @default(true)
+  notificationSms    Boolean           @default(false)
+  notificationPush   Boolean           @default(true)
+  
+  // Subscription fields
+  trialStartsAt      DateTime?         // Set on first record upload
+  trialEndsAt        DateTime?         // Calculated from trialStartsAt
+  subscriptionId     String?           // Stripe subscription ID
+  subscriptionStatus SubscriptionStatus @default(TRIAL_PENDING)
+  subscriptionEndsAt DateTime?
+  aiCredits          Int               @default(0)
+  
+  // Timestamps
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+  deletedAt          DateTime?         // Soft delete
+  
+  // Relations
+  pets               Pet[]
+  shares             Share[]
+  aiAnalyses         AIAnalysis[]
+  activityLogs       ActivityLog[]
+  
+  @@index([clerkId])
+  @@index([email])
+}
+
+model Pet {
+  id               String       @id @default(cuid())
+  userId           String
+  name             String
+  species          Species
+  breed            String?
+  birthDate        DateTime?
+  weight           Float?       // in pounds
+  color            String?
+  microchipId      String?
+  photoUrl         String?
+  sex              PetSex?
+  isNeutered       Boolean      @default(false)
+  specialNeeds     String?      // Text description
+  insuranceInfo    String?      // Provider and policy number
+  
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+  
+  // Relations
+  user             User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  records          Record[]
+  shares           Share[]
+  reminders        Reminder[]
+  
+  @@index([userId])
+}
+
+model Record {
+  id              String       @id @default(cuid())
+  petId           String
+  type            RecordType
+  title           String
+  date            DateTime
+  description     String?
+  
+  // File information
+  originalFileUrl String?      // S3 URL
+  ocrText         String?      // Extracted text
+  ocrConfidence   Float?       // OCR confidence score
+  
+  // Medical specific fields
+  vetName         String?
+  vetClinic       String?
+  diagnosis       String?
+  treatment       String?
+  medications     Json?        // Array of medications
+  nextAppointment DateTime?
+  
+  // Vaccination specific
+  vaccineName     String?
+  vaccineExpiry   DateTime?
+  
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  
+  // Relations
+  pet             Pet          @relation(fields: [petId], references: [id], onDelete: Cascade)
+  sharedRecords   SharedRecord[]
+  
+  @@index([petId])
+  @@index([type])
+  @@index([date])
+}
+
+model Share {
+  id              String         @id @default(cuid())
+  userId          String
+  petId           String
+  token           String         @unique
+  scope           ShareScope
+  expiresAt       DateTime
+  accessCode      String?        // Optional PIN
+  maxViews        Int?           // Optional view limit
+  viewCount       Int            @default(0)
+  
+  createdAt       DateTime       @default(now())
+  revokedAt       DateTime?
+  
+  // Relations
+  user            User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  pet             Pet            @relation(fields: [petId], references: [id], onDelete: Cascade)
+  sharedRecords   SharedRecord[]
+  accessLogs      ShareAccessLog[]
+  
+  @@index([token])
+  @@index([userId])
+  @@index([petId])
+}
+
+model SharedRecord {
+  id        String   @id @default(cuid())
+  shareId   String
+  recordId  String
+  
+  share     Share    @relation(fields: [shareId], references: [id], onDelete: Cascade)
+  record    Record   @relation(fields: [recordId], references: [id], onDelete: Cascade)
+  
+  @@unique([shareId, recordId])
+}
+
+model ShareAccessLog {
+  id         String   @id @default(cuid())
+  shareId    String
+  ipAddress  String?
+  userAgent  String?
+  accessedAt DateTime @default(now())
+  
+  share      Share    @relation(fields: [shareId], references: [id], onDelete: Cascade)
+  
+  @@index([shareId])
+}
+
+model Reminder {
+  id           String       @id @default(cuid())
+  petId        String
+  type         ReminderType
+  title        String
+  description  String?
+  dueDate      DateTime
+  isCompleted  Boolean      @default(false)
+  completedAt  DateTime?
+  
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  
+  pet          Pet          @relation(fields: [petId], references: [id], onDelete: Cascade)
+  
+  @@index([petId])
+  @@index([dueDate])
+}
+
+model AIAnalysis {
+  id           String   @id @default(cuid())
+  userId       String
+  petId        String
+  prompt       String
+  response     String
+  recordIds    String[] // Array of record IDs referenced
+  creditsUsed  Int      @default(1)
+  
+  createdAt    DateTime @default(now())
+  
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId])
+  @@index([petId])
+}
+
+model ActivityLog {
+  id          String   @id @default(cuid())
+  userId      String
+  action      String   // e.g., "record.created", "share.generated", "pet.updated"
+  entityType  String   // e.g., "record", "pet", "share"
+  entityId    String
+  metadata    Json?    // Additional context
+  ipAddress   String?
+  
+  createdAt   DateTime @default(now())
+  
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId])
+  @@index([entityType, entityId])
+}
+
+// Enums
+enum Species {
+  DOG
+  CAT
+  BIRD
+  RABBIT
+  HAMSTER
+  GUINEA_PIG
+  FISH
+  REPTILE
+  OTHER
+}
+
+enum PetSex {
+  MALE
+  FEMALE
+  UNKNOWN
+}
+
+enum RecordType {
+  VACCINATION
+  MEDICAL_EXAM
+  LAB_RESULT
+  PRESCRIPTION
+  SURGERY
+  DENTAL
+  GROOMING
+  TRAINING
+  FEEDING
+  WEIGHT
+  INCIDENT
+  OTHER
+}
+
+enum ShareScope {
+  FULL           // All records
+  MEDICAL        // Medical records only
+  VACCINATION    // Vaccination records only
+  RECENT         // Last 6 months
+  CUSTOM         // Specific records selected
+}
+
+enum ReminderType {
+  VACCINATION
+  MEDICATION
+  APPOINTMENT
+  GROOMING
+  CUSTOM
+}
+
+enum SubscriptionStatus {
+  TRIAL_PENDING  // Trial not started (no records uploaded yet)
+  TRIAL_ACTIVE   // Within 14-day trial period
+  TRIAL_EXPIRED  // Trial ended, no active subscription
+  ACTIVE         // Paid subscription active
+  PAST_DUE       // Payment failed but grace period
+  CANCELLED      // Subscription cancelled
+  PAUSED         // Temporarily paused
+}

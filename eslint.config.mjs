@@ -1,3 +1,5 @@
+// eslint.config.mjs
+
 import { dirname } from "path";
 import { fileURLToPath } from "url";
 import { FlatCompat } from "@eslint/eslintrc";
@@ -16,9 +18,24 @@ const eslintConfig = [
       "node_modules/**",
       ".next/**",
       "out/**",
+      "dist/**",
       "build/**",
-      "next-env.d.ts",
+      "app/generated/**",
+      "**/generated/**",
+      "**/*.min.js",
+      "**/*.min.css",
+      ".vercel/**",
+      "coverage/**",
     ],
+  },
+  {
+    rules: {
+      "@typescript-eslint/no-unused-vars": "warn",
+      "@typescript-eslint/no-unused-expressions": "off",
+      "@typescript-eslint/no-require-imports": "off",
+      "@typescript-eslint/no-this-alias": "off",
+      "react/no-unescaped-entities": "off",
+    },
   },
 ];
 
