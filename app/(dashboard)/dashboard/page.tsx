@@ -3,7 +3,6 @@ import { auth } from '@clerk/nextjs/server';
 import { prisma } from '@/lib/prisma';
 import { 
   FileText, 
-  Calendar, 
   Heart, 
   AlertCircle,
   Upload,

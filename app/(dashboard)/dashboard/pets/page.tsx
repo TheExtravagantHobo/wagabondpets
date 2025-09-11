@@ -32,7 +32,6 @@ const calculateAge = (birthDate: string | null) => {
 };
 
 export default function PetsPage() {
-  const router = useRouter();
   const { pets, selectedPet, selectPet, refreshPets, isLoading } = usePets();
 
   useEffect(() => {

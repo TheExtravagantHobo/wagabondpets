@@ -5,8 +5,10 @@ import { NextResponse } from 'next/server';
 
 export async function GET(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
+  
   try {
     const { userId } = await auth();
     
@@ -27,7 +29,7 @@ export async function GET(
     // Get the specific pet
     const pet = await prisma.pet.findFirst({
       where: { 
-        id: params.id,
+        id: id,
         userId: user.id 
       },
     });
@@ -48,8 +50,10 @@ export async function GET(
 
 export async function PATCH(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
+  
   try {
     const { userId } = await auth();
     
@@ -72,7 +76,7 @@ export async function PATCH(
     // Update the pet
     const pet = await prisma.pet.update({
       where: { 
-        id: params.id,
+        id: id,
         userId: user.id // Ensure user owns this pet
       },
       data: {
@@ -114,8 +118,10 @@ export async function PATCH(
 
 export async function DELETE(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
+  
   try {
     const { userId } = await auth();
     
@@ -136,7 +142,7 @@ export async function DELETE(
     // Delete the pet (cascade will handle related records)
     const pet = await prisma.pet.delete({
       where: { 
-        id: params.id,
+        id: id,
         userId: user.id // Ensure user owns this pet
       },
     });
